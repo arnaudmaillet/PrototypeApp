@@ -1,11 +1,11 @@
 import React from 'react';
 import { StyleSheet, View } from 'react-native';
-import MapboxGL, { Images } from '@rnmapbox/maps';
+import MapboxGL, { MapView, Images, SymbolLayer, CircleLayer, ShapeSource, Camera, LocationPuck } from '@rnmapbox/maps';
 import { featureCollection, point } from '@turf/helpers';
 import iconChat from '../assets/icon-chat.png';
 import locations from '../data/locations.json';
 
-MapboxGL.setAccessToken(process.env.MAPBOX_ACCESS_TOKEN || '');
+MapboxGL.setAccessToken('sk.eyJ1IjoibWFpbGxldGFyIiwiYSI6ImNtMTgxZ3l3bDB3MmsybnNjOTJ0cWozZWcifQ.dgWa21wpx6rWnfsnmjQMNQ');
 
 const Map = () => {
 
@@ -13,18 +13,38 @@ const Map = () => {
 
     return (
         <View style={styles.container}>
-            <MapboxGL.MapView style={styles.map}>
-                <MapboxGL.Camera followUserLocation followZoomLevel={16}></MapboxGL.Camera>
-                <MapboxGL.LocationPuck puckBearingEnabled puckBearing='heading' pulsing={{ isEnabled: true }} />
+            <MapView style={styles.map}>
+                <Camera followUserLocation followZoomLevel={16}></Camera>
+                <LocationPuck puckBearingEnabled puckBearing='heading' pulsing={{ isEnabled: true }} />
 
-                <MapboxGL.ShapeSource id="points" shape={locationsCollection}>
-                    <MapboxGL.SymbolLayer id="point" style={{
-                        iconImage: 'iconChat',
-                        iconSize: 0.05,
-                    }} />
+                <ShapeSource id="points" cluster shape={locationsCollection}>
+                    <SymbolLayer id="cluster-count"
+                        filter={['has', 'point_count']}
+                        style={{
+                            textField: ['get', 'point_count_abbreviated'],
+                            textColor: '#000',
+                            textSize: 12,
+                        }} />
+                    <CircleLayer id="cluster"
+                        filter={['has', 'point_count']}
+                        style={{
+                            circlePitchAlignment: 'map',
+                            circleColor: '#2196f3',
+                            circleRadius: ['interpolate', ['linear'], ['get', 'point_count'], 2, 15, 5, 17, 10, 20, 15, 25, 20, 30],
+                            circleOpacity: 0.4,
+                            circleStrokeColor: '#2196f3',
+                            circleStrokeWidth: 1,
+                        }} />
+                    <SymbolLayer id="point"
+                        filter={['!', ['has', 'point_count']]}
+                        style={{
+                            iconImage: 'iconChat',
+                            iconSize: 0.05,
+                            iconAnchor: 'bottom-left',
+                        }} />
                     <Images images={{ iconChat }} />
-                </MapboxGL.ShapeSource>
-            </MapboxGL.MapView>
+                </ShapeSource>
+            </MapView>
         </View>
     );
 };
