@@ -1,6 +1,6 @@
 import React from 'react';
 import { StyleSheet, View } from 'react-native';
-import MapboxGL, { MapView, Images, SymbolLayer, CircleLayer, ShapeSource, Camera, LocationPuck } from '@rnmapbox/maps';
+import MapboxGL, { MapView, Images, SymbolLayer, CircleLayer, ShapeSource, Camera, LocationPuck, FillExtrusionLayer } from '@rnmapbox/maps';
 import { featureCollection, point } from '@turf/helpers';
 import iconChat from '../assets/icon-chat.png';
 import locations from '../data/locations.json';
@@ -13,9 +13,20 @@ const Map = () => {
 
     return (
         <View style={styles.container}>
-            <MapView style={styles.map}>
-                <Camera followUserLocation followZoomLevel={16}></Camera>
+            <MapView style={styles.map} compassEnabled styleURL="mapbox://styles/mapbox/streets-v11">
+                <Camera followUserLocation followZoomLevel={16} followPitch={65}></Camera>
                 <LocationPuck puckBearingEnabled puckBearing='heading' pulsing={{ isEnabled: true }} />
+                <FillExtrusionLayer
+                    id="3d-buildings"
+                    minZoomLevel={15}
+                    sourceLayerID='building'
+                    style={{
+                        fillExtrusionColor: '#aaa',
+                        fillExtrusionHeight: ['get', 'height'],
+                        fillExtrusionBase: ['get', 'min_height'],
+                        fillExtrusionOpacity: 0.9,
+                    }}
+                />
 
                 <ShapeSource id="points" cluster shape={locationsCollection}>
                     <SymbolLayer id="cluster-count"
