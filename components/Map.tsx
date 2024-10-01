@@ -5,6 +5,24 @@ import MapboxGL, { MapView, Images, SymbolLayer, CircleLayer, ShapeSource, Camer
 import { featureCollection, point } from '@turf/helpers';
 import { OnPressEvent } from '@rnmapbox/maps/lib/typescript/src/types/OnPressEvent';
 
+import {
+    Gesture,
+    GestureDetector,
+} from "react-native-gesture-handler";
+
+import Animated, {
+    useAnimatedStyle,
+    useSharedValue,
+    withSpring,
+    runOnJS,
+    withTiming,
+    SlideInDown,
+    SlideOutDown,
+    FadeIn,
+    FadeOut,
+} from "react-native-reanimated";
+
+
 import { usePoint } from '../providers/PointProvider';
 import { PointContextType } from '../providers/PointContextType';
 
@@ -17,6 +35,8 @@ import locations from '../data/locations.json';
 
 
 MapboxGL.setAccessToken('sk.eyJ1IjoibWFpbGxldGFyIiwiYSI6ImNtMTgxZ3l3bDB3MmsybnNjOTJ0cWozZWcifQ.dgWa21wpx6rWnfsnmjQMNQ');
+
+const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
 
 const Map = () => {
 
@@ -33,6 +53,8 @@ const Map = () => {
     const [coordinatesToMove, setCoordinatesToMove] = React.useState<[number, number] | null>(null);
     const [isOpen, setOpen] = React.useState(false);
 
+    const offset = useSharedValue(0);
+
     const toggleSheet = () => {
         setOpen(!isOpen);
     }
@@ -41,15 +63,6 @@ const Map = () => {
         const feature = event.features[0];
         if (feature.properties) {
             const coordinates = (feature.geometry as GeoJSON.Point).coordinates;
-
-
-
-            // Centrez la caméra sur les coordonnées du point sélectionné
-            cameraRef.current?.setCamera({
-                centerCoordinate: coordinates,
-                zoomLevel: 16,
-                animationDuration: 1000, // Durée de l'animation
-            });
 
 
             if (feature.properties.chat) {
@@ -66,28 +79,67 @@ const Map = () => {
             setCoordinatesToMove(coordinates as [number, number]);
             setIsFollowingUser(false);
             setOpen(true);
+            offset.value = 0;
         }
     }
+
+    const pan = Gesture.Pan()
+        .onChange((event) => {
+            const offsetDelta = event.changeY + offset.value;
+
+            const clamp = Math.max(-20, offsetDelta);
+            offset.value = offsetDelta > 0 ? offsetDelta : withSpring(clamp);
+        })
+        .onFinalize(() => {
+            if (offset.value < 520 / 3) {
+                offset.value = withSpring(0);
+            } else {
+                offset.value = withTiming(520, {}, () => {
+                    runOnJS(toggleSheet)();
+                });
+            }
+        });
+
+    const translateY = useAnimatedStyle(() => ({
+        transform: [{ translateY: offset.value }],
+    }));
 
     useEffect(() => {
         if (coordinatesToMove) {
             cameraRef.current?.setCamera({
                 centerCoordinate: coordinatesToMove,
-                animationDuration: 1000,
+                animationDuration: 500,
+                padding: {
+                    paddingTop: 0,
+                    paddingLeft: 0,
+                    paddingRight: 0,
+                    paddingBottom: isOpen == false ? 0 : 400,
+                },
+                pitch: isOpen == false ? 0 : 50,
             });
         }
-    }, [coordinatesToMove]);
+    }, [isOpen, coordinatesToMove]);
 
     return (
         <View style={styles.container}>
             {
                 isOpen && (
                     <>
-                        <Pressable style={styles.backdrop} onPress={toggleSheet}>
-                            <View style={styles.sheet}>
+                        <AnimatedPressable
+                            style={styles.backdrop}
+                            onPress={toggleSheet}
+                            entering={FadeIn}
+                            exiting={FadeOut}
+                        />
+                        <GestureDetector gesture={pan}>
+                            <Animated.View
+                                style={[styles.sheet, translateY]}
+                                entering={SlideInDown.springify().damping(15)}
+                                exiting={SlideOutDown}
+                            >
                                 <Text>Test</Text>
-                            </View>
-                        </Pressable>
+                            </Animated.View>
+                        </GestureDetector>
                     </>
                 )
             }
@@ -256,7 +308,7 @@ const styles = StyleSheet.create({
     sheet: {
         backgroundColor: "white",
         padding: 16,
-        height: 220,
+        height: 520,
         width: "92%",
         position: "absolute",
         bottom: 20,
@@ -266,7 +318,7 @@ const styles = StyleSheet.create({
     },
     backdrop: {
         ...StyleSheet.absoluteFillObject,
-        backgroundColor: 'rgba(0, 0, 0, 0.1)',
+        backgroundColor: 'rgba(0, 0, 0, 0.05)',
         zIndex: 1,
     },
 });
