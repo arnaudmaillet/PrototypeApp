@@ -21,6 +21,7 @@ MapboxGL.setAccessToken('sk.eyJ1IjoibWFpbGxldGFyIiwiYSI6ImNtMTgxZ3l3bDB3MmsybnNj
 const Map = () => {
 
     const { setSelectedPoint } = usePoint() as PointContextType;
+    const cameraRef = React.useRef<MapboxGL.Camera>(null);
 
     const locationsChats = featureCollection(locations.chats.map((chat) => point([chat.longitude, chat.latitude], { chat })));
     const locationsPhotos = featureCollection(locations.photos.map((photo) => point([photo.longitude, photo.latitude], { photo })));
@@ -28,33 +29,54 @@ const Map = () => {
     const locationsMusics = featureCollection(locations.musics.map((music) => point([music.longitude, music.latitude], { music })));
     const locationLives = featureCollection(locations.lives.map((live) => point([live.longitude, live.latitude], { live })));
 
-    const [isOpen, setOpen] = React.useState(true);
+    const [isFollowingUser, setIsFollowingUser] = React.useState(true);
+    const [coordinatesToMove, setCoordinatesToMove] = React.useState<[number, number] | null>(null);
+    const [isOpen, setOpen] = React.useState(false);
 
     const toggleSheet = () => {
         setOpen(!isOpen);
     }
 
     const onPointPress = async (event: OnPressEvent) => {
-        if (event.features[0].properties && event.features[0].properties.chat) {
-            setSelectedPoint(event.features[0].properties.chat);
-        }
+        const feature = event.features[0];
+        if (feature.properties) {
+            const coordinates = (feature.geometry as GeoJSON.Point).coordinates;
 
-        if (event.features[0].properties && event.features[0].properties.photo) {
-            setSelectedPoint(event.features[0].properties.photo);
-        }
 
-        if (event.features[0].properties && event.features[0].properties.video) {
-            setSelectedPoint(event.features[0].properties.video);
-        }
 
-        if (event.features[0].properties && event.features[0].properties.music) {
-            setSelectedPoint(event.features[0].properties.music);
-        }
+            // Centrez la caméra sur les coordonnées du point sélectionné
+            cameraRef.current?.setCamera({
+                centerCoordinate: coordinates,
+                zoomLevel: 16,
+                animationDuration: 1000, // Durée de l'animation
+            });
 
-        if (event.features[0].properties && event.features[0].properties.live) {
-            setSelectedPoint(event.features[0].properties.live);
+
+            if (feature.properties.chat) {
+                setSelectedPoint(feature.properties.chat);
+            } else if (feature.properties.photo) {
+                setSelectedPoint(feature.properties.photo);
+            } else if (feature.properties.video) {
+                setSelectedPoint(feature.properties.video);
+            } else if (feature.properties.music) {
+                setSelectedPoint(feature.properties.music);
+            } else if (feature.properties.live) {
+                setSelectedPoint(feature.properties.live);
+            }
+            setCoordinatesToMove(coordinates as [number, number]);
+            setIsFollowingUser(false);
+            setOpen(true);
         }
     }
+
+    useEffect(() => {
+        if (coordinatesToMove) {
+            cameraRef.current?.setCamera({
+                centerCoordinate: coordinatesToMove,
+                animationDuration: 1000,
+            });
+        }
+    }, [coordinatesToMove]);
 
     return (
         <View style={styles.container}>
@@ -70,7 +92,7 @@ const Map = () => {
                 )
             }
             <MapView style={styles.map} compassEnabled styleURL="mapbox://styles/mapbox/light-v11">
-                <Camera followUserLocation followZoomLevel={16} followPitch={0}></Camera>
+                <Camera ref={cameraRef} followUserLocation={isFollowingUser} followZoomLevel={16} followPitch={0}></Camera>
                 <LocationPuck puckBearingEnabled puckBearing='heading' pulsing={{ isEnabled: true }} />
                 <FillExtrusionLayer
                     id="3d-buildings"
@@ -235,16 +257,16 @@ const styles = StyleSheet.create({
         backgroundColor: "white",
         padding: 16,
         height: 220,
-        width: "100%",
+        width: "92%",
         position: "absolute",
-        bottom: -20 * 1.1,
-        borderTopRightRadius: 20,
-        borderTopLeftRadius: 20,
+        bottom: 20,
+        borderRadius: 30,
+        marginHorizontal: "4%",
         zIndex: 1,
     },
     backdrop: {
         ...StyleSheet.absoluteFillObject,
-        backgroundColor: 'rgba(0, 0, 0, 0.5)',
+        backgroundColor: 'rgba(0, 0, 0, 0.1)',
         zIndex: 1,
     },
 });
