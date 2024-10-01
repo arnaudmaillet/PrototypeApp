@@ -1,7 +1,13 @@
-import React from 'react';
-import { StyleSheet, View } from 'react-native';
+import React, { useEffect } from 'react'
+import { Pressable, StyleSheet, View, Text } from 'react-native';
+
 import MapboxGL, { MapView, Images, SymbolLayer, CircleLayer, ShapeSource, Camera, LocationPuck, FillExtrusionLayer } from '@rnmapbox/maps';
 import { featureCollection, point } from '@turf/helpers';
+import { OnPressEvent } from '@rnmapbox/maps/lib/typescript/src/types/OnPressEvent';
+
+import { usePoint } from '../providers/PointProvider';
+import { PointContextType } from '../providers/PointContextType';
+
 import iconChat from '../assets/icon-chat.png';
 import iconPhoto from '../assets/icon-photo.png';
 import iconVideo from '../assets/icon-video.png';
@@ -9,21 +15,62 @@ import iconMusic from '../assets/icon-music.png';
 import iconLive from '../assets/icon-live.png';
 import locations from '../data/locations.json';
 
+
 MapboxGL.setAccessToken('sk.eyJ1IjoibWFpbGxldGFyIiwiYSI6ImNtMTgxZ3l3bDB3MmsybnNjOTJ0cWozZWcifQ.dgWa21wpx6rWnfsnmjQMNQ');
 
 const Map = () => {
 
-    const locationsChats = featureCollection(locations.chats.map((location) => point([location.longitude, location.latitude])));
-    const locationsPhotos = featureCollection(locations.photos.map((location) => point([location.longitude, location.latitude])));
-    const locationsVideos = featureCollection(locations.videos.map((location) => point([location.longitude, location.latitude])));
-    const locationsMusics = featureCollection(locations.musics.map((location) => point([location.longitude, location.latitude])));
-    const locationLives = featureCollection(locations.lives.map((location) => point([location.longitude, location.latitude])));
+    const { setSelectedPoint } = usePoint() as PointContextType;
 
+    const locationsChats = featureCollection(locations.chats.map((chat) => point([chat.longitude, chat.latitude], { chat })));
+    const locationsPhotos = featureCollection(locations.photos.map((photo) => point([photo.longitude, photo.latitude], { photo })));
+    const locationsVideos = featureCollection(locations.videos.map((video) => point([video.longitude, video.latitude], { video })));
+    const locationsMusics = featureCollection(locations.musics.map((music) => point([music.longitude, music.latitude], { music })));
+    const locationLives = featureCollection(locations.lives.map((live) => point([live.longitude, live.latitude], { live })));
+
+    const [isOpen, setOpen] = React.useState(true);
+
+    const toggleSheet = () => {
+        setOpen(!isOpen);
+    }
+
+    const onPointPress = async (event: OnPressEvent) => {
+        if (event.features[0].properties && event.features[0].properties.chat) {
+            setSelectedPoint(event.features[0].properties.chat);
+        }
+
+        if (event.features[0].properties && event.features[0].properties.photo) {
+            setSelectedPoint(event.features[0].properties.photo);
+        }
+
+        if (event.features[0].properties && event.features[0].properties.video) {
+            setSelectedPoint(event.features[0].properties.video);
+        }
+
+        if (event.features[0].properties && event.features[0].properties.music) {
+            setSelectedPoint(event.features[0].properties.music);
+        }
+
+        if (event.features[0].properties && event.features[0].properties.live) {
+            setSelectedPoint(event.features[0].properties.live);
+        }
+    }
 
     return (
         <View style={styles.container}>
-            <MapView style={styles.map} compassEnabled styleURL="mapbox://styles/mapbox/streets-v11">
-                <Camera followUserLocation followZoomLevel={16} followPitch={65}></Camera>
+            {
+                isOpen && (
+                    <>
+                        <Pressable style={styles.backdrop} onPress={toggleSheet}>
+                            <View style={styles.sheet}>
+                                <Text>Test</Text>
+                            </View>
+                        </Pressable>
+                    </>
+                )
+            }
+            <MapView style={styles.map} compassEnabled styleURL="mapbox://styles/mapbox/light-v11">
+                <Camera followUserLocation followZoomLevel={16} followPitch={0}></Camera>
                 <LocationPuck puckBearingEnabled puckBearing='heading' pulsing={{ isEnabled: true }} />
                 <FillExtrusionLayer
                     id="3d-buildings"
@@ -37,7 +84,7 @@ const Map = () => {
                     }}
                 />
 
-                <ShapeSource id="pointsChats" cluster shape={locationsChats}>
+                <ShapeSource id="pointsChats" cluster shape={locationsChats} onPress={onPointPress}>
                     <SymbolLayer id="clusterChats-count"
                         filter={['has', 'point_count']}
                         style={{
@@ -65,7 +112,7 @@ const Map = () => {
                     <Images images={{ iconChat }} />
                 </ShapeSource>
 
-                <ShapeSource id="pointsPhotos" cluster shape={locationsPhotos}>
+                <ShapeSource id="pointsPhotos" cluster shape={locationsPhotos} onPress={onPointPress}>
                     <SymbolLayer id="clusterPhotos-count"
                         filter={['has', 'point_count']}
                         style={{
@@ -94,7 +141,7 @@ const Map = () => {
                     <Images images={{ iconPhoto }} />
                 </ShapeSource>
 
-                <ShapeSource id="pointsVideos" cluster shape={locationsVideos}>
+                <ShapeSource id="pointsVideos" cluster shape={locationsVideos} onPress={onPointPress}>
                     <SymbolLayer id="clusterVideos-count"
                         filter={['has', 'point_count']}
                         style={{
@@ -123,7 +170,7 @@ const Map = () => {
                     <Images images={{ iconVideo }} />
                 </ShapeSource>
 
-                <ShapeSource id="pointsMusics" cluster shape={locationsMusics}>
+                <ShapeSource id="pointsMusics" cluster shape={locationsMusics} onPress={onPointPress}>
                     <SymbolLayer id="clusterMusics-count"
                         filter={['has', 'point_count']}
                         style={{
@@ -152,7 +199,7 @@ const Map = () => {
                     <Images images={{ iconMusic }} />
                 </ShapeSource>
 
-                <ShapeSource id="pointsLives" cluster shape={locationLives}>
+                <ShapeSource id="pointsLives" cluster shape={locationLives} onPress={onPointPress}>
                     <SymbolLayer id="clusterLives-count"
                         filter={['has', 'point_count']}
                         style={{
@@ -183,6 +230,22 @@ const styles = StyleSheet.create({
     },
     map: {
         flex: 1,
+    },
+    sheet: {
+        backgroundColor: "white",
+        padding: 16,
+        height: 220,
+        width: "100%",
+        position: "absolute",
+        bottom: -20 * 1.1,
+        borderTopRightRadius: 20,
+        borderTopLeftRadius: 20,
+        zIndex: 1,
+    },
+    backdrop: {
+        ...StyleSheet.absoluteFillObject,
+        backgroundColor: 'rgba(0, 0, 0, 0.5)',
+        zIndex: 1,
     },
 });
 
