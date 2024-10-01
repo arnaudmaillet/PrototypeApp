@@ -8,6 +8,9 @@ import Map from '~/components/Map';
 
 export default function Home() {
   return (
-    <Map />
+    <>
+      <Stack.Screen options={{ headerShown: false }} />
+      <Map />
+    </>
   );
 }
