@@ -1,0 +1,7 @@
+[
+    { "id": 1, "name": "chat", "color": "#ffc107", "icon": "iconChat" },
+    { "id": 2, "name": "photo", "color": "#f44336", "icon": "iconPhoto" },
+    { "id": 3, "name": "video", "color": "#2196f3", "icon": "iconVideo" },
+    { "id": 4, "name": "audio", "color": "#8D939C", "icon": "iconAudio" },
+    { "id": 5, "name": "live", "color": "#662d91", "icon": "iconLive" }
+]

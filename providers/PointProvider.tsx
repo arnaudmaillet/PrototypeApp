@@ -1,5 +1,14 @@
 import { createContext, PropsWithChildren, useContext, useEffect, useState } from "react";
 
+export enum PointType {
+    _CHAT = 1,
+    _PHOTO = 2,
+    _VIDEO = 3,
+    _AUDIO = 4,
+    _LIVE = 5
+}
+
+
 export interface PointContextType {
     selectedPoint: any[];
     setSelectedPoint: React.Dispatch<React.SetStateAction<any[]>>;
