@@ -21,9 +21,9 @@ export const PointProvider = ({ children }: PropsWithChildren) => {
     const [selectedPoint, setSelectedPoint] = useState<any[]>([]);
 
 
-    useEffect(() => {
-        console.log(JSON.stringify(selectedPoint))
-    }, [selectedPoint])
+    // useEffect(() => {
+    //     console.log(JSON.stringify(selectedPoint))
+    // }, [selectedPoint])
 
     return (
         <PointContext.Provider value={{ selectedPoint, setSelectedPoint }}>

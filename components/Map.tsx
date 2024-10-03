@@ -34,6 +34,10 @@ import iconAudio from '../assets/icon-audio.png';
 import iconLive from '../assets/icon-live.png';
 import locations from '../data/locations.json';
 
+import Chat from '~/screens/Chat';
+import Photo from '~/screens/Photo';
+import Video from '~/screens/Video';
+
 
 MapboxGL.setAccessToken('sk.eyJ1IjoibWFpbGxldGFyIiwiYSI6ImNtMTgxZ3l3bDB3MmsybnNjOTJ0cWozZWcifQ.dgWa21wpx6rWnfsnmjQMNQ');
 
@@ -41,7 +45,7 @@ const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
 
 const Map = () => {
 
-    const { setSelectedPoint } = usePoint() as PointContextType;
+    const { selectedPoint, setSelectedPoint } = usePoint() as PointContextType;
     const cameraRef = React.useRef<MapboxGL.Camera>(null);
 
     const [isFollowingUser, setIsFollowingUser] = React.useState(true);
@@ -50,22 +54,30 @@ const Map = () => {
 
     const offset = useSharedValue(0);
 
+    // Get all points (flattened) for selecting random point
+    const allPoints = locations.points;
+
     const toggleSheet = () => {
         setOpen(!isOpen);
     }
 
-    const onPointPress = async (event: OnPressEvent) => {
-        const feature = event.features[0];
+    // Function to select a random point
+    const selectRandomPoint = () => {
+        const randomIndex = Math.floor(Math.random() * allPoints.length);
+        const randomPoint = allPoints[randomIndex];
+        setSelectedPoint(randomPoint);
+        setCoordinatesToMove([randomPoint.longitude, randomPoint.latitude]);
+    };
 
-        console.log(feature);
+    const onPointPress = async (event: OnPressEvent) => {
+
+        const feature = event.features[0];
 
         if (feature.properties) {
             const coordinates = (feature.geometry as GeoJSON.Point).coordinates;
 
-
             if (feature.properties.cluster === undefined) {
-                setSelectedPoint(feature.properties._point);
-                setSelectedPoint(feature.properties._point);
+                setSelectedPoint(feature.properties);
                 setCoordinatesToMove(coordinates as [number, number]);
                 setIsFollowingUser(false);
                 setOpen(true);
@@ -73,6 +85,19 @@ const Map = () => {
             }
         }
     }
+
+    // Swipe gesture to change selected point
+    const swipeGesture = Gesture.Pan()
+        .onEnd((event) => {
+            if (Math.abs(event.translationX) > Math.abs(event.translationY)) {
+                if (event.translationX > 0) {
+                    console.log('Swipe Right');
+                } else {
+                    console.log('Swipe Left');
+                }
+                runOnJS(selectRandomPoint)(); // Change point on swipe
+            }
+        });
 
     const pan = Gesture.Pan()
         .onChange((event) => {
@@ -122,13 +147,26 @@ const Map = () => {
                             entering={FadeIn}
                             exiting={FadeOut}
                         />
-                        <GestureDetector gesture={pan}>
+                        <GestureDetector gesture={Gesture.Race(pan, swipeGesture)}>
                             <Animated.View
                                 style={[styles.sheet, translateY]}
                                 entering={SlideInDown.springify().damping(15)}
                                 exiting={SlideOutDown}
                             >
-                                <Text>Test</Text>
+                                {
+                                    (() => {
+                                        switch (selectedPoint?.type) {
+                                            case 1:
+                                                return <Chat />
+                                            case 2:
+                                                return <Photo />
+                                            case 3:
+                                                return <Video />
+                                            default:
+                                                return <Text>No content</Text>
+                                        }
+                                    })()
+                                }
                             </Animated.View>
                         </GestureDetector>
                     </>
@@ -137,6 +175,18 @@ const Map = () => {
             <MapView style={styles.map} compassEnabled styleURL="mapbox://styles/mapbox/light-v11">
                 <Camera ref={cameraRef} followUserLocation={isFollowingUser} followZoomLevel={16} followPitch={0}></Camera>
                 <LocationPuck puckBearingEnabled puckBearing='heading' pulsing={{ isEnabled: true }} />
+
+                <FillExtrusionLayer
+                    id="3d-buildings"
+                    minZoomLevel={15}
+                    sourceLayerID='building'
+                    style={{
+                        fillExtrusionColor: '#aaa',
+                        fillExtrusionHeight: ['get', 'height'],
+                        fillExtrusionBase: ['get', 'min_height'],
+                        fillExtrusionOpacity: 0.9,
+                    }}
+                />
 
                 {
                     pointsType.map((pointType) => {
