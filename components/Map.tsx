@@ -30,9 +30,10 @@ import pointsType from '../data/pointsType.json';
 
 import { useSwipeGesture } from '../hooks/useSwipeGesture';
 
-import { getVideoSource, iconsMap } from '~/assets/assets';
+import { iconsMap } from '~/assets/assets';
 
 import locations from '~/data/locations.json';
+import videos from '~/data/videos.json';
 
 import Chat from '~/screens/Chat';
 import Photo from '~/screens/Photo';
@@ -161,6 +162,10 @@ const Map = () => {
     }));
 
 
+    const getVideo = (id: number) => {
+        return videos.data.find(video => video.id === id);
+    }
+
 
     useEffect(() => {
         if (coordinatesToMoveCamera) {
@@ -226,7 +231,8 @@ const Map = () => {
                                             case 2:
                                                 return <Photo />
                                             case 3:
-                                                return <VideoScreen videoSource={getVideoSource(selectedPoint.file)} />
+                                                const video = getVideo(selectedPoint?.dataId);
+                                                return video ? <VideoScreen video={video} /> : <Text>No video available</Text>;
                                             default:
                                                 return <Text>No content</Text>
                                         }

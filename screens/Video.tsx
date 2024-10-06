@@ -3,11 +3,25 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Video, ResizeMode, AVPlaybackStatus } from 'expo-av';
 import Animated, { FadeIn, FadeOut, useSharedValue, useAnimatedStyle, withTiming } from 'react-native-reanimated';
 
-interface VideoScreenProps {
-    videoSource: { uri: string };
+import { getVideoSource } from '~/assets/assets';
+
+interface VideoProps {
+    id: number,
+    file: string,
+    account: string,
+    likes: number,
+    comments: number,
+    shares: number,
+    views: number,
+    saved: number,
+    description: string
 }
 
-const VideoScreen: React.FC<VideoScreenProps> = ({ videoSource }) => {
+interface VideoScreenProps {
+    video: VideoProps
+}
+
+const VideoScreen: React.FC<VideoScreenProps> = ({ video }) => {
     const [isLoaded, setIsLoaded] = useState(false); // Pour suivre l'état de chargement
     const [shouldAnimate, setShouldAnimate] = useState<boolean>(false); // Pour surveiller les changements de source vidéo
     const [isPlaying, setIsPlaying] = useState<boolean>(false);
@@ -22,7 +36,7 @@ const VideoScreen: React.FC<VideoScreenProps> = ({ videoSource }) => {
                     setIsLoaded(false); // Réinitialiser l'état de chargement
                     setShouldAnimate(true); // Activer l'animation lors du changement de source
                     await videoRef.current.unloadAsync(); // Décharger toute vidéo précédente
-                    await videoRef.current.loadAsync(videoSource, {}, false); // Charger la nouvelle vidéo
+                    await videoRef.current.loadAsync(getVideoSource(video.file), {}, false); // Charger la nouvelle vidéo
                     await videoRef.current.playAsync(); // Jouer la vidéo après le chargement
                     setIsLoaded(true); // La vidéo est prête et en lecture
                     progress.value = withTiming(0, { duration: 0 }); // Réinitialiser la progression
@@ -33,7 +47,7 @@ const VideoScreen: React.FC<VideoScreenProps> = ({ videoSource }) => {
         };
 
         loadVideo();
-    }, [videoSource]); // Recharger la vidéo si la source change
+    }, [video]); // Recharger la vidéo si la source change
 
     useEffect(() => {
         if (isLoaded) {
@@ -79,7 +93,7 @@ const VideoScreen: React.FC<VideoScreenProps> = ({ videoSource }) => {
                 <TouchableWithoutFeedback onPress={handleVideoPress}>
                     <Video
                         ref={videoRef}
-                        source={videoSource}
+                        source={getVideoSource(video.file)}
                         rate={1.0}
                         volume={1.0}
                         isMuted={false}
