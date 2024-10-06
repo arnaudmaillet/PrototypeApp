@@ -18,7 +18,8 @@ const PointContext = createContext({});
 
 export const PointProvider = ({ children }: PropsWithChildren) => {
 
-    const [selectedPoint, setSelectedPoint] = useState<any[]>([]);
+    const [selectedPoint, setSelectedPoint] = useState<any[]>([]); // Currently selected point
+    const [coordinatesToMoveCamera, setCoordinatesToMoveCamera] = useState<[number, number] | null>(null); // Where to move the camera on the map
 
 
     // useEffect(() => {
@@ -26,7 +27,7 @@ export const PointProvider = ({ children }: PropsWithChildren) => {
     // }, [selectedPoint])
 
     return (
-        <PointContext.Provider value={{ selectedPoint, setSelectedPoint }}>
+        <PointContext.Provider value={{ selectedPoint, setSelectedPoint, coordinatesToMoveCamera, setCoordinatesToMoveCamera }}>
             {children}
         </PointContext.Provider>
     );

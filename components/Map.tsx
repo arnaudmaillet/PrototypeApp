@@ -20,6 +20,7 @@ import Animated, {
     SlideOutDown,
     FadeIn,
     FadeOut,
+    withRepeat,
 } from "react-native-reanimated";
 
 
@@ -27,16 +28,15 @@ import { usePoint } from '../providers/PointProvider';
 import { PointContextType } from '../providers/PointContextType';
 import pointsType from '../data/pointsType.json';
 
-import iconChat from '../assets/icon-chat.png';
-import iconPhoto from '../assets/icon-photo.png';
-import iconVideo from '../assets/icon-video.png';
-import iconAudio from '../assets/icon-audio.png';
-import iconLive from '../assets/icon-live.png';
-import locations from '../data/locations.json';
+import { useSwipeGesture } from '../hooks/useSwipeGesture';
+
+import { getVideoSource, iconsMap } from '~/assets/assets';
+
+import locations from '~/data/locations.json';
 
 import Chat from '~/screens/Chat';
 import Photo from '~/screens/Photo';
-import Video from '~/screens/Video';
+import VideoScreen from '~/screens/Video';
 
 
 MapboxGL.setAccessToken('sk.eyJ1IjoibWFpbGxldGFyIiwiYSI6ImNtMTgxZ3l3bDB3MmsybnNjOTJ0cWozZWcifQ.dgWa21wpx6rWnfsnmjQMNQ');
@@ -45,12 +45,13 @@ const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
 
 const Map = () => {
 
-    const { selectedPoint, setSelectedPoint } = usePoint() as PointContextType;
+    const { selectedPoint, setSelectedPoint, coordinatesToMoveCamera, setCoordinatesToMoveCamera } = usePoint() as PointContextType;
     const cameraRef = React.useRef<MapboxGL.Camera>(null);
 
     const [isFollowingUser, setIsFollowingUser] = React.useState(true);
-    const [coordinatesToMove, setCoordinatesToMove] = React.useState<[number, number] | null>(null);
+    const [currentIndex, setCurrentIndex] = React.useState<number>(0); // Keep track of the current index
     const [isOpen, setOpen] = React.useState(false);
+    const [iconSize, setIconSize] = React.useState(0.04);
 
     const offset = useSharedValue(0);
 
@@ -61,13 +62,51 @@ const Map = () => {
         setOpen(!isOpen);
     }
 
-    // Function to select a random point
-    const selectRandomPoint = () => {
-        const randomIndex = Math.floor(Math.random() * allPoints.length);
-        const randomPoint = allPoints[randomIndex];
-        setSelectedPoint(randomPoint);
-        setCoordinatesToMove([randomPoint.longitude, randomPoint.latitude]);
+    // Function to set selected point by index
+    const setPointByIndex = (index: number) => {
+        const point = allPoints[index];
+        setSelectedPoint(point);
+        setCoordinatesToMoveCamera([point.longitude, point.latitude]);
     };
+
+    // Function to go to the next point
+    const goToNextPoint = () => {
+        if (!selectedPoint) {
+            // If no point is selected, select the first one
+            setCurrentIndex(0);
+            setPointByIndex(0);
+        } else {
+            const currentId = selectedPoint.id;
+            const currentIndex = allPoints.findIndex(point => point.id === currentId);
+            let nextIndex = currentIndex + 1;
+            if (nextIndex >= allPoints.length) {
+                nextIndex = 0; // Loop to the start
+            }
+            setCurrentIndex(nextIndex);
+            setPointByIndex(nextIndex);
+        }
+    };
+
+    // Function to go to the previous point
+    const goToPreviousPoint = () => {
+        if (!selectedPoint) {
+            // If no point is selected, select the first one
+            setCurrentIndex(0);
+            setPointByIndex(0);
+        } else {
+            const currentId = selectedPoint.id;
+            const currentIndex = allPoints.findIndex(point => point.id === currentId);
+            let prevIndex = currentIndex - 1;
+            if (prevIndex < 0) {
+                prevIndex = allPoints.length - 1; // Loop to the end
+            }
+            setCurrentIndex(prevIndex);
+            setPointByIndex(prevIndex);
+        }
+    };
+
+    useSwipeGesture(goToNextPoint, goToPreviousPoint);
+
 
     const onPointPress = async (event: OnPressEvent) => {
 
@@ -78,28 +117,29 @@ const Map = () => {
 
             if (feature.properties.cluster === undefined) {
                 setSelectedPoint(feature.properties);
-                setCoordinatesToMove(coordinates as [number, number]);
+                setCoordinatesToMoveCamera(coordinates as [number, number]);
                 setIsFollowingUser(false);
                 setOpen(true);
-                offset.value = 0;
+                offset.value = 0
             }
         }
     }
 
-    // Swipe gesture to change selected point
-    const swipeGesture = Gesture.Pan()
+
+    // Swipe gesture to navigate between points
+    const swipeLeftRight = Gesture.Pan()
         .onEnd((event) => {
             if (Math.abs(event.translationX) > Math.abs(event.translationY)) {
                 if (event.translationX > 0) {
-                    console.log('Swipe Right');
+                    runOnJS(goToPreviousPoint)(); // Swipe Right: Go to previous point
                 } else {
-                    console.log('Swipe Left');
+                    runOnJS(goToNextPoint)(); // Swipe Left: Go to next point
                 }
-                runOnJS(selectRandomPoint)(); // Change point on swipe
             }
         });
 
-    const pan = Gesture.Pan()
+
+    const swipeUpDown = Gesture.Pan()
         .onChange((event) => {
             const offsetDelta = event.changeY + offset.value;
 
@@ -120,21 +160,46 @@ const Map = () => {
         transform: [{ translateY: offset.value }],
     }));
 
+
+
     useEffect(() => {
-        if (coordinatesToMove) {
+        if (coordinatesToMoveCamera) {
             cameraRef.current?.setCamera({
-                centerCoordinate: coordinatesToMove,
+                centerCoordinate: coordinatesToMoveCamera,
                 animationDuration: 500,
                 padding: {
                     paddingTop: 0,
                     paddingLeft: 0,
                     paddingRight: 0,
-                    paddingBottom: isOpen == false ? 0 : 600,
+                    paddingBottom: isOpen === false ? 0 : 600,
                 },
-                pitch: isOpen == false ? 0 : 50,
+                pitch: isOpen === false ? 0 : 50,
             });
         }
-    }, [isOpen, coordinatesToMove]);
+        if (!isOpen) {
+            setSelectedPoint(null); // Vide `selectedPoint` lorsque la feuille est fermée
+        }
+    }, [isOpen, coordinatesToMoveCamera]);
+
+
+    useEffect(() => {
+        let bounceInterval: NodeJS.Timeout;
+
+        if (selectedPoint) {
+            // Démarre un intervalle pour changer la taille de l'icône
+            bounceInterval = setInterval(() => {
+                setIconSize((prev) => (prev === 0.04 ? 0.06 : 0.04));
+            }, 300); // Changement de taille toutes les 300ms pour créer l'effet de rebond
+        } else {
+            setIconSize(0.04); // Réinitialise la taille lorsque le point n'est plus sélectionné
+        }
+
+        return () => {
+            clearInterval(bounceInterval);
+        };
+    }, [selectedPoint]);
+
+
 
     return (
         <View style={styles.container}>
@@ -147,7 +212,7 @@ const Map = () => {
                             entering={FadeIn}
                             exiting={FadeOut}
                         />
-                        <GestureDetector gesture={Gesture.Race(pan, swipeGesture)}>
+                        <GestureDetector gesture={Gesture.Race(swipeUpDown, swipeLeftRight)}>
                             <Animated.View
                                 style={[styles.sheet, translateY]}
                                 entering={SlideInDown.springify().damping(15)}
@@ -161,7 +226,7 @@ const Map = () => {
                                             case 2:
                                                 return <Photo />
                                             case 3:
-                                                return <Video />
+                                                return <VideoScreen videoSource={getVideoSource(selectedPoint.file)} />
                                             default:
                                                 return <Text>No content</Text>
                                         }
@@ -222,10 +287,17 @@ const Map = () => {
                                             ['==', ['get', 'type'], 5], 'iconLive',
                                             'none'
                                         ],
-                                        iconSize: 0.04,
-                                        iconAnchor: 'bottom-left',
+                                        iconSize: [
+                                            'case',
+                                            selectedPoint?.id
+                                                ? ['==', ['get', 'id'], selectedPoint.id]
+                                                : false, // Si l'ID est indéfini, on n'applique pas la condition
+                                            iconSize,
+                                            0.04,
+                                        ],
+                                        iconAnchor: 'center',
                                     }} />
-                                <Images images={{ iconChat, iconPhoto, iconVideo, iconAudio, iconLive }} />
+                                <Images images={iconsMap} />
                             </ShapeSource>
                         )
                     })
@@ -243,19 +315,14 @@ const styles = StyleSheet.create({
         flex: 1,
     },
     sheet: {
-        backgroundColor: "white",
-        padding: 16,
-        height: 700,
-        width: "92%",
         position: "absolute",
+        alignSelf: 'center',
         bottom: 20,
-        borderRadius: 30,
-        marginHorizontal: "4%",
-        zIndex: 1,
+        zIndex: 1
     },
     backdrop: {
         ...StyleSheet.absoluteFillObject,
-        backgroundColor: 'rgba(0, 0, 0, 0.05)',
+        backgroundColor: 'rgba(0, 0, 0, 0.1)',
         zIndex: 1,
     },
 });
