@@ -16,11 +16,8 @@ import Animated, {
     withSpring,
     runOnJS,
     withTiming,
-    SlideInDown,
-    SlideOutDown,
     FadeIn,
     FadeOut,
-    withRepeat,
 } from "react-native-reanimated";
 
 
@@ -157,11 +154,6 @@ const Map = () => {
             }
         });
 
-    const translateY = useAnimatedStyle(() => ({
-        transform: [{ translateY: offset.value }],
-    }));
-
-
     const getVideo = (id: number) => {
         return videos.data.find(video => video.id === id);
     }
@@ -214,14 +206,10 @@ const Map = () => {
                         <AnimatedPressable
                             style={styles.backdrop}
                             onPress={toggleSheet}
-                            entering={FadeIn}
-                            exiting={FadeOut}
                         />
                         <GestureDetector gesture={Gesture.Race(swipeUpDown, swipeLeftRight)}>
-                            <Animated.View
-                                style={[styles.sheet, translateY]}
-                                entering={SlideInDown.springify().damping(15)}
-                                exiting={SlideOutDown}
+                            <View
+                                style={styles.sheet}
                             >
                                 {
                                     (() => {
@@ -238,12 +226,12 @@ const Map = () => {
                                         }
                                     })()
                                 }
-                            </Animated.View>
+                            </View>
                         </GestureDetector>
                     </>
                 )
             }
-            <MapView style={styles.map} compassEnabled styleURL="mapbox://styles/mapbox/light-v11">
+            <MapView style={styles.map} compassEnabled styleURL="mapbox://styles/mapbox/light-v11" logoEnabled={false} attributionEnabled={false}>
                 <Camera ref={cameraRef} followUserLocation={isFollowingUser} followZoomLevel={16} followPitch={0}></Camera>
                 <LocationPuck puckBearingEnabled puckBearing='heading' pulsing={{ isEnabled: true }} />
 
@@ -268,18 +256,16 @@ const Map = () => {
                                     filter={['has', 'point_count']}
                                     style={{
                                         textField: ['get', 'point_count_abbreviated'],
-                                        textColor: '#000',
-                                        textSize: 12,
+                                        textColor: 'gray',
+                                        textSize: ['interpolate', ['linear'], ['get', 'point_count'], 2, 10, 5, 14, 10, 15, 15, 16, 20, 17],
                                     }} />
                                 <CircleLayer id={`cluster${pointType.name}`}
                                     filter={['has', 'point_count']}
                                     style={{
                                         circlePitchAlignment: 'map',
                                         circleColor: pointType.color,
-                                        circleRadius: ['interpolate', ['linear'], ['get', 'point_count'], 2, 15, 5, 17, 10, 20, 15, 25, 20, 30],
+                                        circleRadius: ['interpolate', ['linear'], ['get', 'point_count'], 2, 10, 5, 17, 10, 20, 15, 25, 20, 30],
                                         circleOpacity: 0.4,
-                                        circleStrokeColor: pointType.color,
-                                        circleStrokeWidth: 1,
                                     }} />
                                 <SymbolLayer id={`point${pointType.name}`}
                                     filter={['!', ['has', 'point_count']]}
@@ -324,7 +310,9 @@ const styles = StyleSheet.create({
         position: "absolute",
         alignSelf: 'center',
         bottom: 20,
-        zIndex: 1
+        zIndex: 1,
+        width: 390,
+        height: 700,
     },
     backdrop: {
         ...StyleSheet.absoluteFillObject,

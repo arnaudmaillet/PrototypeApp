@@ -1,10 +1,12 @@
-import { ActivityIndicator, StyleSheet, TouchableWithoutFeedback, View, Image, Text } from 'react-native';
+import { ActivityIndicator, StyleSheet, TouchableWithoutFeedback, View, Text } from 'react-native';
 import React, { useState, useEffect, useRef } from 'react';
 import { Video, ResizeMode, AVPlaybackStatus } from 'expo-av';
-import Animated, { Easing, FadeIn, FadeOut, useSharedValue, useAnimatedStyle, withTiming, withRepeat } from 'react-native-reanimated';
+import Animated, { useSharedValue, useAnimatedStyle, withTiming, SlideInDown, SlideOutDown } from 'react-native-reanimated';
+
+import pointerColors from '~/constants/pointerColors';
 
 import { getVideoSource } from '~/assets/assets';
-import { FontAwesome6, MaterialIcons } from '@expo/vector-icons';
+import { FontAwesome6 } from '@expo/vector-icons';
 
 interface VideoProps {
     id: number,
@@ -24,19 +26,15 @@ interface VideoScreenProps {
 
 const VideoScreen: React.FC<VideoScreenProps> = ({ video }) => {
     const [isLoaded, setIsLoaded] = useState(false); // Pour suivre l'état de chargement
-    const [shouldAnimate, setShouldAnimate] = useState<boolean>(false); // Pour surveiller les changements de source vidéo
     const [isPlaying, setIsPlaying] = useState<boolean>(false);
     const progress = useSharedValue(0); // Progression de la vidéo partagée
     const videoRef = useRef<Video | null>(null); // Référence à la vidéo
-
-    const bounceValue = useSharedValue(0);
 
     useEffect(() => {
         const loadVideo = async () => {
             if (videoRef.current) {
                 try {
                     setIsLoaded(false); // Réinitialiser l'état de chargement
-                    setShouldAnimate(true); // Activer l'animation lors du changement de source
                     await videoRef.current.unloadAsync(); // Décharger toute vidéo précédente
                     await videoRef.current.loadAsync(getVideoSource(video.file), {}, false); // Charger la nouvelle vidéo
                     await videoRef.current.playAsync(); // Jouer la vidéo après le chargement
@@ -51,36 +49,9 @@ const VideoScreen: React.FC<VideoScreenProps> = ({ video }) => {
         loadVideo();
     }, [video]); // Recharger la vidéo si la source change
 
-    useEffect(() => {
-        if (isLoaded) {
-            setTimeout(() => setShouldAnimate(false), 300); // Désactiver l'animation après 300ms
-        }
-    }, [isLoaded]);
-
-    useEffect(() => {
-        bounceValue.value = withRepeat(
-            withTiming(-5, {
-                duration: 1500,
-                easing: Easing.inOut(Easing.ease),
-            }),
-            -1, // Répéter indéfiniment
-            true // Inverser à chaque itération pour l'effet de retour
-        );
-    }, []);
-
     const animatedProgressBarStyle = useAnimatedStyle(() => ({
         width: `${progress.value * 100}%`,
     }));
-
-    const animatedArrowStyle = useAnimatedStyle(() => {
-        return {
-            transform: [
-                {
-                    translateY: bounceValue.value, // Appliquer la translation à l'icône
-                },
-            ],
-        };
-    })
 
     const handleVideoPress = async () => {
         console.log('Video pressed');
@@ -94,18 +65,26 @@ const VideoScreen: React.FC<VideoScreenProps> = ({ video }) => {
         }
     };
 
+
     const handlePlaybackStatusUpdate = (status: AVPlaybackStatus) => {
         if (status.isLoaded && status.durationMillis && status.positionMillis) {
-            const progressValue = status.positionMillis / status.durationMillis;
-            progress.value = withTiming(progressValue, { duration: 500 }); // Animation fluide avec timing
+            if (status.didJustFinish) {
+                // Réinitialiser la barre de progression immédiatement sans animation
+                console.log('Video finished');
+                progress.value = 0;
+            } else {
+                const progressValue = status.positionMillis / status.durationMillis;
+                progress.value = withTiming(progressValue, { duration: 500 }); // Animation fluide avec timing
+            }
+        } else {
+            progress.value = 0;
         }
     };
-
     return (
         <Animated.View
             style={styles.container}
-            entering={shouldAnimate ? FadeIn.duration(1000) : undefined} // Animation de transition d'entrée
-            exiting={shouldAnimate ? FadeOut.duration(1000) : undefined}  // Animation de transition de sortie
+            entering={SlideInDown.springify().damping(15)}
+            exiting={SlideOutDown}
         >
             <View style={styles.loaderContainer}>
                 {!isLoaded && (
@@ -136,12 +115,6 @@ const VideoScreen: React.FC<VideoScreenProps> = ({ video }) => {
                     <Text style={styles.accountText}>@{video.account}</Text>
                     <Text style={styles.descriptionText}>{video.description}</Text>
                 </View>
-
-
-                {/* Icône avec l'animation de rebond */}
-                <Animated.View style={[styles.arrowContainer, animatedArrowStyle]}>
-                    <MaterialIcons name="keyboard-arrow-up" size={30} color="white" />
-                </Animated.View>
 
 
                 {/* Informations sociales : likes, commentaires, partages */}
@@ -179,7 +152,7 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         overflow: 'hidden',
         backgroundColor: 'rgba(0, 0, 0, 0.8)',
-        borderColor: 'rgba(0, 0, 0, 0.9)',
+        borderColor: 'rgba(255, 255, 255, 0.9)',
         borderWidth: 2.5,
         borderRadius: 20,
     },
@@ -208,7 +181,7 @@ const styles = StyleSheet.create({
     },
     progressBar: {
         height: '100%',
-        backgroundColor: 'grey',
+        backgroundColor: pointerColors.video,
         borderRadius: 5,
     },
     accountInfoContainer: {
