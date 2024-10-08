@@ -8,10 +8,12 @@ import pointerColors from '~/constants/pointerColors';
 import { getVideoSource } from '~/assets/assets';
 import { FontAwesome6 } from '@expo/vector-icons';
 
+import users from '~/data/users';
+
 interface VideoProps {
     id: number,
     file: string,
-    account: string,
+    userId: number,
     likes: number,
     comments: number,
     shares: number,
@@ -39,7 +41,7 @@ const VideoScreen: React.FC<VideoScreenProps> = ({ video }) => {
                     await videoRef.current.loadAsync(getVideoSource(video.file), {}, false); // Charger la nouvelle vidéo
                     await videoRef.current.playAsync(); // Jouer la vidéo après le chargement
                     setIsLoaded(true); // La vidéo est prête et en lecture
-                    progress.value = withTiming(0, { duration: 0 }); // Réinitialiser la progression
+                    progress.value = 0
                 } catch (error) {
                     console.error("Error loading video:", error);
                 }
@@ -112,7 +114,7 @@ const VideoScreen: React.FC<VideoScreenProps> = ({ video }) => {
 
                 {/* Informations du compte en haut de l'écran */}
                 <View style={styles.accountInfoContainer}>
-                    <Text style={styles.accountText}>@{video.account}</Text>
+                    <Text style={styles.accountText}>@{users.data.find((user: { id: number; username: string }) => user.id === video.userId)?.username}</Text>
                     <Text style={styles.descriptionText}>{video.description}</Text>
                 </View>
 

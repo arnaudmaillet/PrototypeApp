@@ -11,13 +11,10 @@ import {
 } from "react-native-gesture-handler";
 
 import Animated, {
-    useAnimatedStyle,
     useSharedValue,
     withSpring,
     runOnJS,
     withTiming,
-    FadeIn,
-    FadeOut,
 } from "react-native-reanimated";
 
 
@@ -31,8 +28,9 @@ import { iconsMap } from '~/assets/assets';
 
 import locations from '~/data/locations.json';
 import videos from '~/data/videos.json';
+import chats from '~/data/chats.json';
 
-import Chat from '~/screens/Chat';
+import ChatScreen from '~/screens/Chat';
 import Photo from '~/screens/Photo';
 import VideoScreen from '~/screens/Video';
 
@@ -53,12 +51,25 @@ const Map = () => {
 
     const offset = useSharedValue(0);
 
-    // Get all points (flattened) for selecting random point
-    const allPoints = locations.points;
-
     const toggleSheet = () => {
         setOpen(!isOpen);
     }
+
+    // ** Get data from the JSON files ** //
+
+    const getVideo = (id: number) => {
+        return videos.data.find(video => video.id === id);
+    }
+
+    const getChat = (id: number) => {
+        return chats.data.find(chat => chat.id === id);
+    }
+
+
+    // ** Point selection functions ** //
+
+    // Get all points (flattened) for selecting random point
+    const allPoints = locations.points;
 
     // Function to set selected point by index
     const setPointByIndex = (index: number) => {
@@ -103,8 +114,6 @@ const Map = () => {
         }
     };
 
-    useSwipeGesture(goToNextPoint, goToPreviousPoint);
-
 
     const onPointPress = async (event: OnPressEvent) => {
 
@@ -124,7 +133,10 @@ const Map = () => {
     }
 
 
-    // Swipe gesture to navigate between points
+    // ** Gesture handlers ** //
+
+    useSwipeGesture(goToNextPoint, goToPreviousPoint);
+
     const swipeLeftRight = Gesture.Pan()
         .onEnd((event) => {
             if (Math.abs(event.translationX) > Math.abs(event.translationY)) {
@@ -154,10 +166,9 @@ const Map = () => {
             }
         });
 
-    const getVideo = (id: number) => {
-        return videos.data.find(video => video.id === id);
-    }
 
+
+    // ** UseEffect ** //
 
     useEffect(() => {
         if (coordinatesToMoveCamera) {
@@ -197,6 +208,7 @@ const Map = () => {
     }, [selectedPoint]);
 
 
+    // ** Render ** //
 
     return (
         <View style={styles.container}>
@@ -215,7 +227,8 @@ const Map = () => {
                                     (() => {
                                         switch (selectedPoint?.type) {
                                             case 1:
-                                                return <Chat />
+                                                const chat = getChat(selectedPoint?.dataId);
+                                                return chat ? <ChatScreen chat={chat} currentUserId={1} /> : <Text>No chat available</Text>;
                                             case 2:
                                                 return <Photo />
                                             case 3:
