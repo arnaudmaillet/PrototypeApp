@@ -1,5 +1,5 @@
 import React, { useEffect } from 'react'
-import { Pressable, StyleSheet, View, Text } from 'react-native';
+import { Pressable, StyleSheet, View, Text, KeyboardAvoidingView, Platform, Keyboard, Dimensions } from 'react-native';
 
 import MapboxGL, { MapView, Images, SymbolLayer, CircleLayer, ShapeSource, Camera, LocationPuck, FillExtrusionLayer } from '@rnmapbox/maps';
 import { featureCollection, point } from '@turf/helpers';
@@ -137,8 +137,13 @@ const Map = () => {
 
     useSwipeGesture(goToNextPoint, goToPreviousPoint);
 
+    const dismissKeyboard = () => {
+        Keyboard.dismiss();
+    };
+
     const swipeLeftRight = Gesture.Pan()
         .onEnd((event) => {
+            runOnJS(dismissKeyboard)();
             if (Math.abs(event.translationX) > Math.abs(event.translationY)) {
                 if (event.translationX > 0) {
                     runOnJS(goToPreviousPoint)(); // Swipe Right: Go to previous point
@@ -179,7 +184,7 @@ const Map = () => {
                     paddingTop: 0,
                     paddingLeft: 0,
                     paddingRight: 0,
-                    paddingBottom: isOpen === false ? 0 : 600,
+                    paddingBottom: isOpen === false ? 0 : Dimensions.get('window').height * 0.72
                 },
                 pitch: isOpen === false ? 0 : 50,
             });
@@ -220,8 +225,10 @@ const Map = () => {
                             onPress={toggleSheet}
                         />
                         <GestureDetector gesture={Gesture.Race(swipeUpDown, swipeLeftRight)}>
-                            <View
+                            <KeyboardAvoidingView
                                 style={styles.sheet}
+                                behavior={Platform.OS === 'ios' ? 'padding' : 'height'}  // Utilise 'padding' pour iOS et 'height' pour Android
+                                keyboardVerticalOffset={0}  // Ajustez la hauteur si nécessaire
                             >
                                 {
                                     (() => {
@@ -239,12 +246,19 @@ const Map = () => {
                                         }
                                     })()
                                 }
-                            </View>
+                            </KeyboardAvoidingView>
                         </GestureDetector>
                     </>
                 )
             }
-            <MapView style={styles.map} compassEnabled styleURL="mapbox://styles/mapbox/light-v11" logoEnabled={false} attributionEnabled={false}>
+            <MapView
+                style={styles.map}
+                compassEnabled={isOpen === false}
+                scaleBarEnabled={isOpen === false}
+                styleURL="mapbox://styles/mapbox/light-v11"
+                logoEnabled={false}
+                attributionEnabled={false}
+            >
                 <Camera ref={cameraRef} followUserLocation={isFollowingUser} followZoomLevel={16} followPitch={0}></Camera>
                 <LocationPuck puckBearingEnabled puckBearing='heading' pulsing={{ isEnabled: true }} />
 
@@ -325,7 +339,7 @@ const styles = StyleSheet.create({
         bottom: 20,
         zIndex: 1,
         width: 390,
-        height: 700,
+        height: '80%',
     },
     backdrop: {
         ...StyleSheet.absoluteFillObject,

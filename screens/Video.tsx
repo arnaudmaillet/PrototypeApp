@@ -85,7 +85,7 @@ const VideoScreen: React.FC<VideoScreenProps> = ({ video }) => {
     return (
         <Animated.View
             style={styles.container}
-            entering={SlideInDown.springify().damping(15)}
+            entering={SlideInDown.springify().damping(17)}
             exiting={SlideOutDown}
         >
             <View style={styles.loaderContainer}>
@@ -165,7 +165,7 @@ const styles = StyleSheet.create({
     },
     video: {
         width: 390,
-        height: 700,
+        height: '100%',
         backgroundColor: 'none',
     },
     loader: {
