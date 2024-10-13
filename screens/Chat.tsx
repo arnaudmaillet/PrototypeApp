@@ -1,12 +1,12 @@
 import { View, StyleSheet, TextInput, FlatList, Text, TouchableOpacity } from 'react-native'
-import Animated, { BounceIn, FadeIn, FadeOut, runOnJS, SlideInDown, SlideInLeft, SlideInRight, SlideOutDown, StretchInY, useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated'
+import Animated, { BounceIn, FadeIn, SlideInDown, SlideOutDown, StretchInY, useAnimatedStyle, withTiming, ZoomIn } from 'react-native-reanimated'
 import pointerColors from '~/constants/pointerColors'
 import users from '~/data/users'
 
 import Ionicons from '@expo/vector-icons/Ionicons';
 import FontAwesome6 from '@expo/vector-icons/FontAwesome6';
 
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 
 interface MessageProps {
     userId: number,
@@ -28,42 +28,9 @@ interface ChatScreenProps {
 const ChatScreen: React.FC<ChatScreenProps> = ({ chat, currentUserId }) => {
 
     const [newMessageContent, setNewMessageContent] = useState<string>('')
-    const [currentUserName, setCurrentUserName] = useState<string | undefined>(
-        users.data.find((user: { id: number; username: string }) => user.id === chat.usersId[0])?.username
-    );
+
     const isTyping = newMessageContent !== '';
 
-    const animatedStyle = useAnimatedStyle(() => ({
-        transform: [{ scale: withTiming(isTyping ? 1.2 : 1, { duration: 150 }) }],
-        opacity: withTiming(isTyping ? 1 : 0.6, { duration: 150 }),
-    }));
-
-    // Création d'une valeur partagée pour l'animation de l'opacité
-    const opacity = useSharedValue(1);
-
-    // Fonction de mise à jour du nom d'utilisateur, appelée via runOnJS
-    const updateUserName = (newUserName: string | undefined) => {
-        setCurrentUserName(newUserName);
-    };
-
-    // Utilisation d'useEffect pour détecter les changements de chat
-    useEffect(() => {
-        const newUserName = users.data.find((user: { id: number; username: string }) => user.id === chat.usersId[0])?.username;
-        if (newUserName !== currentUserName) {
-            // Animer la disparition puis l'apparition du nouveau nom
-            opacity.value = withTiming(0, { duration: 300 }, () => {
-                runOnJS(updateUserName)(newUserName); // Appel via runOnJS pour mettre à jour React state
-                opacity.value = withTiming(1, { duration: 300 }); // Animation de réapparition
-            });
-        }
-    }, [chat]); // Surveiller tout changement de chat
-
-    // Style animé basé sur l'opacité
-    const userNameAnimatedStyle = useAnimatedStyle(() => {
-        return {
-            opacity: opacity.value
-        };
-    });
 
     const renderMessage = ({ item, index }: { item: MessageProps, index: number }) => {
 
@@ -99,7 +66,7 @@ const ChatScreen: React.FC<ChatScreenProps> = ({ chat, currentUserId }) => {
                         <Text style={styles.usernameText}>{messageUser?.username}</Text>
                     )}
                     <Text style={styles.messageText}>{item.content}</Text>
-                    <Text style={styles.messageDate}>{item.date}</Text>
+                    <Text style={styles.messageDate}>{new Date(item.date).toLocaleTimeString().slice(0, -3)}</Text>
                 </Animated.View>
             </View>
         );
@@ -119,12 +86,12 @@ const ChatScreen: React.FC<ChatScreenProps> = ({ chat, currentUserId }) => {
                 <View style={styles.headerContainer}>
                     <View style={styles.userContainer}>
                         <View style={styles.userIcon}>
-                            <Animated.Text style={[styles.userIconText, userNameAnimatedStyle]}>
-                                {currentUserName}
+                            <Animated.Text style={styles.userIconText} key={chat.usersId[0]} entering={FadeIn.springify()}>
+                                {users.data.find((user: { id: number }) => user.id === chat.usersId[0])?.username}
                             </Animated.Text>
                         </View>
-                        <Animated.Text style={[styles.userName, userNameAnimatedStyle]}>
-                            {currentUserName}
+                        <Animated.Text style={styles.userName} key={chat.usersId[0]} entering={FadeIn.springify()}>
+                            {users.data.find((user: { id: number }) => user.id === chat.usersId[0])?.username}
                         </Animated.Text>
                     </View>
                     <View style={styles.firstMessageContainer}>
@@ -158,7 +125,7 @@ const ChatScreen: React.FC<ChatScreenProps> = ({ chat, currentUserId }) => {
                     />
                     {/* Animated icon change between microphone and send button */}
                     <TouchableOpacity onPress={() => { }} style={styles.sendButton}>
-                        <Animated.View style={[styles.animatedIcon, animatedStyle]}>
+                        <Animated.View style={styles.animatedIcon} key={isTyping.toString()} entering={ZoomIn.springify()}>
                             {isTyping ? (
                                 <View style={styles.sendCircle}>
                                     <Ionicons name="send" size={15} color="white" />
@@ -180,6 +147,13 @@ const styles = StyleSheet.create({
         justifyContent: 'flex-end',
         alignItems: 'center',
         width: '100%',
+        borderWidth: 0.5,
+        borderColor: 'rgba(0, 0, 0, 0.01)',
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.1,
+        shadowRadius: 4,
+        elevation: 5,
     },
     headerContainer: {
         flexDirection: 'row',
@@ -192,6 +166,11 @@ const styles = StyleSheet.create({
         margin: 10,
         borderWidth: 1,
         borderColor: 'rgba(0, 0, 0, 0.025)',
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.1,
+        shadowRadius: 4,
+        elevation: 5,
     },
     userContainer: {
         display: 'flex',
@@ -236,7 +215,12 @@ const styles = StyleSheet.create({
         backgroundColor: 'white',
         borderRadius: 15,
         borderColor: 'rgba(0, 0, 0, 0.15)',
-        borderWidth: 1,
+        borderWidth: 0.5,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.1,
+        shadowRadius: 4,
+        elevation: 5,
     },
     messagesList: {
         flexGrow: 1,
@@ -281,12 +265,7 @@ const styles = StyleSheet.create({
         fontSize: 12,
         fontWeight: 'bold',
         color: 'gray',
-        marginBottom: 3,
-    },
-    messageBubble: {
-        padding: 10,
-        borderRadius: 10,
-        maxWidth: '80%',
+        margin: 3,
     },
     currentUserBubble: {
         alignSelf: 'flex-end',
@@ -296,8 +275,14 @@ const styles = StyleSheet.create({
         alignSelf: 'flex-start',
         backgroundColor: '#f1f1f1',
     },
+    messageBubble: {
+        padding: 5,
+        borderRadius: 10,
+        maxWidth: '80%',
+    },
     messageText: {
         color: 'black',
+        margin: 3,
     },
     messageDate: {
         fontSize: 10,
@@ -320,10 +305,11 @@ const styles = StyleSheet.create({
         borderColor: 'rgba(0, 0, 0, 0.15)',
         borderWidth: 1,
         paddingHorizontal: 10,
+        height: 45,
     },
     input: {
         flex: 1,
-        height: 45,
+
         backgroundColor: 'white',
         padding: 5,
     },

@@ -1,7 +1,7 @@
 import React, { useEffect } from 'react'
 import { Pressable, StyleSheet, View, Text, KeyboardAvoidingView, Platform, Keyboard, Dimensions } from 'react-native';
 
-import MapboxGL, { MapView, Images, SymbolLayer, CircleLayer, ShapeSource, Camera, LocationPuck, FillExtrusionLayer } from '@rnmapbox/maps';
+import MapboxGL, { MapView, Images, SymbolLayer, CircleLayer, ShapeSource, Camera, LocationPuck, FillExtrusionLayer, PointAnnotation, ImageEntry } from '@rnmapbox/maps';
 import { featureCollection, point } from '@turf/helpers';
 import { OnPressEvent } from '@rnmapbox/maps/lib/typescript/src/types/OnPressEvent';
 
@@ -15,6 +15,11 @@ import Animated, {
     withSpring,
     runOnJS,
     withTiming,
+    useAnimatedStyle,
+    SlideInDown,
+    SlideOutDown,
+    ZoomIn,
+    ZoomOut,
 } from "react-native-reanimated";
 
 
@@ -33,6 +38,7 @@ import chats from '~/data/chats.json';
 import ChatScreen from '~/screens/Chat';
 import Photo from '~/screens/Photo';
 import VideoScreen from '~/screens/Video';
+import SearchMenu from './SearchMenu';
 
 
 MapboxGL.setAccessToken('sk.eyJ1IjoibWFpbGxldGFyIiwiYSI6ImNtMTgxZ3l3bDB3MmsybnNjOTJ0cWozZWcifQ.dgWa21wpx6rWnfsnmjQMNQ');
@@ -45,15 +51,11 @@ const Map = () => {
     const cameraRef = React.useRef<MapboxGL.Camera>(null);
 
     const [isFollowingUser, setIsFollowingUser] = React.useState(true);
-    const [currentIndex, setCurrentIndex] = React.useState<number>(0); // Keep track of the current index
-    const [isOpen, setOpen] = React.useState(false);
-    const [iconSize, setIconSize] = React.useState(0.04);
+    const [positionSheetY, setPositionSheetY] = React.useState(0);
+    const [isMenuOpen, setIsMenuOpen] = React.useState(false);
 
     const offset = useSharedValue(0);
 
-    const toggleSheet = () => {
-        setOpen(!isOpen);
-    }
 
     // ** Get data from the JSON files ** //
 
@@ -82,7 +84,6 @@ const Map = () => {
     const goToNextPoint = () => {
         if (!selectedPoint) {
             // If no point is selected, select the first one
-            setCurrentIndex(0);
             setPointByIndex(0);
         } else {
             const currentId = selectedPoint.id;
@@ -91,7 +92,6 @@ const Map = () => {
             if (nextIndex >= allPoints.length) {
                 nextIndex = 0; // Loop to the start
             }
-            setCurrentIndex(nextIndex);
             setPointByIndex(nextIndex);
         }
     };
@@ -100,7 +100,6 @@ const Map = () => {
     const goToPreviousPoint = () => {
         if (!selectedPoint) {
             // If no point is selected, select the first one
-            setCurrentIndex(0);
             setPointByIndex(0);
         } else {
             const currentId = selectedPoint.id;
@@ -109,7 +108,6 @@ const Map = () => {
             if (prevIndex < 0) {
                 prevIndex = allPoints.length - 1; // Loop to the end
             }
-            setCurrentIndex(prevIndex);
             setPointByIndex(prevIndex);
         }
     };
@@ -119,16 +117,17 @@ const Map = () => {
 
         const feature = event.features[0];
 
+        console.log('feature', feature);
+
         if (feature.properties) {
             const coordinates = (feature.geometry as GeoJSON.Point).coordinates;
 
-            if (feature.properties.cluster === undefined) {
-                setSelectedPoint(feature.properties);
-                setCoordinatesToMoveCamera(coordinates as [number, number]);
-                setIsFollowingUser(false);
-                setOpen(true);
-                offset.value = 0
-            }
+            //if (feature.properties.cluster === undefined) {
+            setSelectedPoint(feature.properties);
+            setCoordinatesToMoveCamera(coordinates as [number, number]);
+            setIsFollowingUser(false);
+            offset.value = 0
+            //}
         }
     }
 
@@ -137,41 +136,47 @@ const Map = () => {
 
     useSwipeGesture(goToNextPoint, goToPreviousPoint);
 
+    const runOnJSSetSelectedPoint = (point: any) => {
+        setSelectedPoint(point);
+    }
+
     const dismissKeyboard = () => {
         Keyboard.dismiss();
     };
 
-    const swipeLeftRight = Gesture.Pan()
+    const panGesture = Gesture.Pan()
+        .onUpdate((event) => {
+            const isVerticalSwipe = Math.abs(event.translationY) > Math.abs(event.translationX);
+            if (isVerticalSwipe) {
+                // Gérer le swipe haut/bas
+                const offsetDelta = event.translationY // Calculer le déplacement + offset
+                const clamp = Math.max(-20, offsetDelta); // Limiter le déplacement vers le haut
+                offset.value = offsetDelta > 0 ? offsetDelta : withSpring(clamp); // Appliquer le déplacement avec un rebond
+                runOnJS(setPositionSheetY)(offsetDelta); // Mettre à jour la position de la feuille
+            }
+        })
         .onEnd((event) => {
-            runOnJS(dismissKeyboard)();
-            if (Math.abs(event.translationX) > Math.abs(event.translationY)) {
-                if (event.translationX > 0) {
-                    runOnJS(goToPreviousPoint)(); // Swipe Right: Go to previous point
+            const isVerticalSwipe = Math.abs(event.translationY) > Math.abs(event.translationX);
+            if (isVerticalSwipe) {
+                if (offset.value < 520 / 3) {
+                    offset.value = withSpring(0);
+                    runOnJS(setPositionSheetY)(0);
                 } else {
-                    runOnJS(goToNextPoint)(); // Swipe Left: Go to next point
+                    offset.value = withTiming(520, {}, () => {
+                        runOnJS(runOnJSSetSelectedPoint)(null);
+                    });
+                }
+            } else {
+                runOnJS(dismissKeyboard)();
+                if (Math.abs(event.translationX) > Math.abs(event.translationY)) {
+                    if (event.translationX > 0) {
+                        runOnJS(goToPreviousPoint)(); // Swipe Right: Go to previous point
+                    } else {
+                        runOnJS(goToNextPoint)(); // Swipe Left: Go to next point
+                    }
                 }
             }
         });
-
-
-    const swipeUpDown = Gesture.Pan()
-        .onChange((event) => {
-            const offsetDelta = event.changeY + offset.value;
-
-            const clamp = Math.max(-20, offsetDelta);
-            offset.value = offsetDelta > 0 ? offsetDelta : withSpring(clamp);
-        })
-        .onFinalize(() => {
-            if (offset.value < 520 / 3) {
-                offset.value = withSpring(0);
-            } else {
-                offset.value = withTiming(520, {}, () => {
-                    runOnJS(toggleSheet)();
-                });
-            }
-        });
-
-
 
     // ** UseEffect ** //
 
@@ -184,77 +189,146 @@ const Map = () => {
                     paddingTop: 0,
                     paddingLeft: 0,
                     paddingRight: 0,
-                    paddingBottom: isOpen === false ? 0 : Dimensions.get('window').height * 0.72
+                    paddingBottom: selectedPoint === null ? 0 : Dimensions.get('window').height * 0.72,
                 },
-                pitch: isOpen === false ? 0 : 50,
+                pitch: selectedPoint === null ? 0 : 50,
             });
         }
-        if (!isOpen) {
+        if (selectedPoint === null) {
             setSelectedPoint(null); // Vide `selectedPoint` lorsque la feuille est fermée
         }
-    }, [isOpen, coordinatesToMoveCamera]);
-
+    }, [selectedPoint, coordinatesToMoveCamera]);
 
     useEffect(() => {
-        let bounceInterval: NodeJS.Timeout;
+        const handlePaddingAndPitchAnimation = () => {
+            if (cameraRef.current) {
+                const maxPosition = 520; // Position maximale de la feuille (par exemple, quand elle est complètement ouverte)
+                const normalizedPosition = Math.min(Math.max(positionSheetY, 0), maxPosition);
 
-        if (selectedPoint) {
-            // Démarre un intervalle pour changer la taille de l'icône
-            bounceInterval = setInterval(() => {
-                setIconSize((prev) => (prev === 0.04 ? 0.06 : 0.04));
-            }, 300); // Changement de taille toutes les 300ms pour créer l'effet de rebond
-        } else {
-            setIconSize(0.04); // Réinitialise la taille lorsque le point n'est plus sélectionné
-        }
+                // Interpolation du pitch de 50 à 0 en fonction de la position de la feuille
+                const newPitch = 50 - (50 * (normalizedPosition / maxPosition));
 
-        return () => {
-            clearInterval(bounceInterval);
+                // Interpolation du paddingBottom de max (height * 0.72) à 0
+                const newPaddingBottom = Dimensions.get('window').height * 0.72 * (1 - (normalizedPosition / maxPosition));
+
+                // Mise à jour de la caméra avec le nouveau pitch et padding
+                cameraRef.current?.setCamera({
+                    pitch: newPitch,
+                    animationDuration: 500,
+                    padding: {
+                        paddingBottom: newPaddingBottom, // Appliquer le padding interpolé
+                        paddingTop: 0,
+                        paddingLeft: 0,
+                        paddingRight: 0,
+                    },
+                });
+            }
         };
-    }, [selectedPoint]);
 
+        handlePaddingAndPitchAnimation();
+    }, [positionSheetY]); // Recalculer à chaque mise à jour de positionSheetY
+
+
+    const translateSheetY = useAnimatedStyle(() => {
+        return {
+            transform: [{ translateY: offset.value }],
+        };
+    })
 
     // ** Render ** //
 
     return (
         <View style={styles.container}>
-            {
-                isOpen && (
-                    <>
-                        <AnimatedPressable
-                            style={styles.backdrop}
-                            onPress={toggleSheet}
-                        />
-                        <GestureDetector gesture={Gesture.Race(swipeUpDown, swipeLeftRight)}>
-                            <KeyboardAvoidingView
-                                style={styles.sheet}
-                                behavior={Platform.OS === 'ios' ? 'padding' : 'height'}  // Utilise 'padding' pour iOS et 'height' pour Android
-                                keyboardVerticalOffset={0}  // Ajustez la hauteur si nécessaire
-                            >
+            {(() => {
+                switch (selectedPoint?.type) {
+                    case 1:
+                        const chat = getChat(selectedPoint?.dataId);
+                        return chat ? <>
+                            <AnimatedPressable
+                                style={styles.backdrop}
+                                onPress={() => {
+                                    setSelectedPoint(null)
+                                    dismissKeyboard()
+                                }}
+                            />
+                            <GestureDetector gesture={panGesture}>
+                                <Animated.View
+                                    style={[styles.sheet, translateSheetY]}
+                                >
+                                    <KeyboardAvoidingView
+                                        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+                                        keyboardVerticalOffset={160}
+                                        style={styles.keyboardAvoidingView}
+                                    >
+                                        <ChatScreen chat={chat} currentUserId={1} />
+                                    </KeyboardAvoidingView>
+                                </Animated.View>
+                            </GestureDetector>
+                        </>
+                            : <Text>No chat available</Text>;
+                    case 2:
+                        return <Photo />;
+                    case 3:
+                        const video = getVideo(selectedPoint?.dataId);
+                        return video ?
+                            <>
+                                <AnimatedPressable
+                                    style={styles.backdrop}
+                                    onPress={() => {
+                                        setSelectedPoint(null)
+                                        dismissKeyboard()
+                                    }}
+                                />
+                                <GestureDetector gesture={panGesture}>
+                                    <Animated.View
+                                        style={[styles.sheet, translateSheetY]}
+                                    >
+                                        <KeyboardAvoidingView
+                                            behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+                                            keyboardVerticalOffset={160}
+                                            style={styles.keyboardAvoidingView}
+                                        >
+                                            <VideoScreen video={video} />
+                                        </KeyboardAvoidingView>
+                                    </Animated.View>
+                                </GestureDetector>
+                            </>
+                            : <Text>No video available</Text>;
+                    default:
+                        return (
+                            <>
                                 {
-                                    (() => {
-                                        switch (selectedPoint?.type) {
-                                            case 1:
-                                                const chat = getChat(selectedPoint?.dataId);
-                                                return chat ? <ChatScreen chat={chat} currentUserId={1} /> : <Text>No chat available</Text>;
-                                            case 2:
-                                                return <Photo />
-                                            case 3:
-                                                const video = getVideo(selectedPoint?.dataId);
-                                                return video ? <VideoScreen video={video} /> : <Text>No video available</Text>;
-                                            default:
-                                                return <Text>No content</Text>
-                                        }
-                                    })()
+                                    isMenuOpen && (
+                                        <AnimatedPressable
+                                            style={styles.backdrop}
+                                            onPress={() => {
+                                                setIsMenuOpen(false)
+                                                dismissKeyboard()
+                                            }}
+                                        />
+                                    )
                                 }
-                            </KeyboardAvoidingView>
-                        </GestureDetector>
-                    </>
-                )
-            }
+                                <Animated.View
+                                    style={[styles.searchMenu, { height: isMenuOpen ? 500 : 150 }]}
+                                    entering={SlideInDown.springify().damping(17)}
+                                    exiting={SlideOutDown}
+                                >
+                                    <KeyboardAvoidingView
+                                        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+                                        keyboardVerticalOffset={440}
+                                        style={styles.keyboardAvoidingView}
+                                    >
+                                        <SearchMenu onBlurInput={() => setIsMenuOpen(false)} onFocusInput={() => setIsMenuOpen(true)} />
+                                    </KeyboardAvoidingView>
+                                </Animated.View>
+                            </>
+                        );
+                }
+            })()}
             <MapView
                 style={styles.map}
-                compassEnabled={isOpen === false}
-                scaleBarEnabled={isOpen === false}
+                compassEnabled={selectedPoint === null}
+                scaleBarEnabled={selectedPoint === null}
                 styleURL="mapbox://styles/mapbox/light-v11"
                 logoEnabled={false}
                 attributionEnabled={false}
@@ -272,6 +346,7 @@ const Map = () => {
                         fillExtrusionBase: ['get', 'min_height'],
                         fillExtrusionOpacity: 0.9,
                     }}
+                    layerIndex={50} // 50 is max
                 />
 
                 {
@@ -294,29 +369,33 @@ const Map = () => {
                                         circleRadius: ['interpolate', ['linear'], ['get', 'point_count'], 2, 10, 5, 17, 10, 20, 15, 25, 20, 30],
                                         circleOpacity: 0.4,
                                     }} />
+
                                 <SymbolLayer id={`point${pointType.name}`}
                                     filter={['!', ['has', 'point_count']]}
                                     style={{
                                         iconImage: [
                                             'case',
+                                            // ['==', ['get', 'type'], 0] and selectedPoint?.id === ['get', 'id'], 'iconChatAnimated',
                                             ['==', ['get', 'type'], 1], 'iconChat',
-                                            ['==', ['get', 'type'], 2], 'iconPhoto',
-                                            ['==', ['get', 'type'], 3], 'iconVideo',
-                                            ['==', ['get', 'type'], 4], 'iconAudio',
-                                            ['==', ['get', 'type'], 5], 'iconLive',
+                                            // ['==', ['get', 'type'], 2], 'iconPhoto',
+                                            // ['==', ['get', 'type'], 3], 'iconVideo',
+                                            // ['==', ['get', 'type'], 4], 'iconAudio',
+                                            // ['==', ['get', 'type'], 5], 'iconLive',
                                             'none'
                                         ],
-                                        iconSize: [
-                                            'case',
-                                            selectedPoint?.id
-                                                ? ['==', ['get', 'id'], selectedPoint.id]
-                                                : false, // Si l'ID est indéfini, on n'applique pas la condition
-                                            iconSize,
-                                            0.04,
-                                        ],
+                                        // iconSize: [
+                                        //     'case',
+                                        //     selectedPoint?.id
+                                        //         ? ['==', ['get', 'id'], selectedPoint.id]
+                                        //         : false, // Si l'ID est indéfini, on n'applique pas la condition
+                                        //     iconSize,
+                                        //     0.04,
+                                        // ],
                                         iconAnchor: 'center',
-                                    }} />
-                                <Images images={iconsMap} />
+                                        iconSize: 0.04,
+                                    }}
+                                />
+                                <Images images={{ ...iconsMap }} />
                             </ShapeSource>
                         )
                     })
@@ -333,6 +412,9 @@ const styles = StyleSheet.create({
     map: {
         flex: 1,
     },
+    keyboardAvoidingView: {
+        flex: 1,
+    },
     sheet: {
         position: "absolute",
         alignSelf: 'center',
@@ -346,6 +428,13 @@ const styles = StyleSheet.create({
         backgroundColor: 'rgba(0, 0, 0, 0.1)',
         zIndex: 1,
     },
+    searchMenu: {
+        position: "absolute",
+        alignSelf: 'center',
+        bottom: 20,
+        zIndex: 2,
+        width: 390,
+    }
 });
 
 export default Map;

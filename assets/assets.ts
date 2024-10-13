@@ -6,6 +6,42 @@ export const iconsMap = {
     iconLive: require('../assets/icon-live.png'),
 };
 
+// export const iconChatAnimated = {
+//     frame00: require('../assets/icon-chat-animated/frame_00_delay-0.03s.png'),
+//     frame01: require('../assets/icon-chat-animated/frame_01_delay-0.03s.png'),
+//     frame02: require('../assets/icon-chat-animated/frame_02_delay-0.03s.png'),
+//     frame03: require('../assets/icon-chat-animated/frame_03_delay-0.03s.png'),
+//     frame04: require('../assets/icon-chat-animated/frame_04_delay-0.03s.png'),
+//     frame05: require('../assets/icon-chat-animated/frame_05_delay-0.03s.png'),
+//     frame06: require('../assets/icon-chat-animated/frame_06_delay-0.03s.png'),
+//     frame07: require('../assets/icon-chat-animated/frame_07_delay-0.03s.png'),
+//     frame08: require('../assets/icon-chat-animated/frame_08_delay-0.03s.png'),
+//     frame09: require('../assets/icon-chat-animated/frame_09_delay-0.03s.png'),
+//     frame10: require('../assets/icon-chat-animated/frame_10_delay-0.03s.png'),
+//     frame11: require('../assets/icon-chat-animated/frame_11_delay-0.03s.png'),
+//     frame12: require('../assets/icon-chat-animated/frame_12_delay-0.03s.png'),
+//     frame13: require('../assets/icon-chat-animated/frame_13_delay-0.03s.png'),
+//     frame14: require('../assets/icon-chat-animated/frame_14_delay-0.03s.png'),
+//     frame15: require('../assets/icon-chat-animated/frame_15_delay-0.03s.png'),
+//     frame16: require('../assets/icon-chat-animated/frame_16_delay-0.04s.png'),
+//     frame17: require('../assets/icon-chat-animated/frame_17_delay-0.03s.png'),
+//     frame18: require('../assets/icon-chat-animated/frame_18_delay-0.03s.png'),
+//     frame19: require('../assets/icon-chat-animated/frame_19_delay-0.03s.png'),
+//     frame20: require('../assets/icon-chat-animated/frame_20_delay-0.03s.png'),
+//     frame21: require('../assets/icon-chat-animated/frame_21_delay-0.03s.png'),
+//     frame22: require('../assets/icon-chat-animated/frame_22_delay-0.03s.png'),
+//     frame23: require('../assets/icon-chat-animated/frame_23_delay-0.03s.png'),
+//     frame24: require('../assets/icon-chat-animated/frame_24_delay-0.03s.png'),
+//     frame25: require('../assets/icon-chat-animated/frame_25_delay-0.03s.png'),
+//     frame26: require('../assets/icon-chat-animated/frame_26_delay-0.03s.png'),
+//     frame27: require('../assets/icon-chat-animated/frame_27_delay-0.03s.png'),
+//     frame28: require('../assets/icon-chat-animated/frame_28_delay-0.03s.png'),
+//     frame29: require('../assets/icon-chat-animated/frame_29_delay-0.03s.png'),
+//     frame30: require('../assets/icon-chat-animated/frame_30_delay-0.03s.png'),
+//     frame31: require('../assets/icon-chat-animated/frame_31_delay-0.03s.png'),
+//     frame32: require('../assets/icon-chat-animated/frame_32_delay-0.03s.png'),
+// }
+
 
 export const getVideoSource = (fileName: any) => {
     switch (fileName) {

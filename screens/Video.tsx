@@ -72,7 +72,6 @@ const VideoScreen: React.FC<VideoScreenProps> = ({ video }) => {
         if (status.isLoaded && status.durationMillis && status.positionMillis) {
             if (status.didJustFinish) {
                 // Réinitialiser la barre de progression immédiatement sans animation
-                console.log('Video finished');
                 progress.value = 0;
             } else {
                 const progressValue = status.positionMillis / status.durationMillis;
